@@ -9,6 +9,7 @@
 4. **评估方案**：在 20% 留出集上以 **F1-score 与 ROC-AUC** 作为统一评估标准，并将结果写入 `reports/model_metrics.json`。
 
 ## 运行方式
+> 可视化文件默认在运行时生成，已通过 `.gitignore` 排除在版本库之外；如需仅输出数值指标，可加 `--no-figures` 跳过绘图。
 ```bash
 # 基础流程（预处理 + EDA + 训练评估）
 python scripts/wine_quality_analysis.py
@@ -28,6 +29,9 @@ python scripts/wine_quality_analysis.py \
   --ask "分析酒精度与质量的关系" \
   --deepseek-api-key your_key \
   --deepseek-api-url https://api.deepseek.com/chat/completions
+
+# 仅输出数值指标，不写入可视化文件
+python scripts/wine_quality_analysis.py --no-figures
 ```
 
 ### 如何配置和调用 DeepSeek API Key？
@@ -60,7 +64,7 @@ python scripts/wine_quality_analysis.py \
 输出位置：
 - `reports/summary_stats.csv`：各特征统计量
 - `reports/model_metrics.json`：评估指标（F1、ROC-AUC）与评估标准说明
-- `reports/figures/*.svg`：
+- `reports/figures/*.{svg}`（运行时生成，默认 SVG，支持通过 `--figure-format` 指定）:
   - `quality_distribution.svg` 质量分布柱状图
   - `quality_donut.svg` 质量层级（低/中/高）环形图
   - `correlation_heatmap.svg` 特征相关性热力图

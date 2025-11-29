@@ -774,6 +774,8 @@ def main(
     question: str | None = None,
     deepseek_api_key: str | None = None,
     deepseek_api_url: str | None = None,
+    generate_figures: bool = True,
+    figure_format: str = "svg",
 ):
     raw_rows = load_data()
     rows = preprocess_data(raw_rows)
@@ -782,58 +784,66 @@ def main(
     summary = summarize_numeric(rows, feature_names + ["quality"])
     save_summary_csv(summary, OUTPUT_DIR / "summary_stats.csv")
 
-    quality_counts = Counter(r["quality"] for r in rows)
-    save_bar_svg(quality_counts, "Quality Distribution", FIG_DIR / "quality_distribution.svg")
+    def fig_path(name: str) -> Path:
+        return FIG_DIR / f"{name}.{figure_format}"
 
-    # 质量分层环形图（低/中/高）
-    banded = {"低质量(<=4)": 0, "中等(5-6)": 0, "高质量(>=7)": 0}
-    for q in quality_counts:
-        if q <= 4:
-            banded["低质量(<=4)"] += quality_counts[q]
-        elif q <= 6:
-            banded["中等(5-6)"] += quality_counts[q]
-        else:
-            banded["高质量(>=7)"] += quality_counts[q]
-    save_quality_donut(banded, "质量层级占比", FIG_DIR / "quality_donut.svg")
+    quality_counts = Counter(r["quality"] for r in rows)
+    if generate_figures:
+        save_bar_svg(quality_counts, "Quality Distribution", fig_path("quality_distribution"))
+
+        # 质量分层环形图（低/中/高）
+        banded = {"低质量(<=4)": 0, "中等(5-6)": 0, "高质量(>=7)": 0}
+        for q in quality_counts:
+            if q <= 4:
+                banded["低质量(<=4)"] += quality_counts[q]
+            elif q <= 6:
+                banded["中等(5-6)"] += quality_counts[q]
+            else:
+                banded["高质量(>=7)"] += quality_counts[q]
+        save_quality_donut(banded, "质量层级占比", fig_path("quality_donut"))
 
     fields_for_corr = feature_names + ["quality"]
     correlation_matrix = compute_correlation_matrix(rows, fields_for_corr)
-    save_correlation_svg(fields_for_corr, correlation_matrix, FIG_DIR / "correlation_heatmap.svg")
+    if generate_figures:
+        save_correlation_svg(fields_for_corr, correlation_matrix, fig_path("correlation_heatmap"))
 
     # 硫化物分布箱线图（按高/普通质量分组）
     grouped_sulfur = {
         "普通酒(quality<7)": [r["total_sulfur_dioxide"] for r in rows if r["quality_label"] == 0],
         "高质量酒(>=7)": [r["total_sulfur_dioxide"] for r in rows if r["quality_label"] == 1],
     }
-    save_group_boxplot_svg(
-        grouped_sulfur,
-        title="总二氧化硫分布（按质量分组）",
-        y_label="total_sulfur_dioxide",
-        path=FIG_DIR / "total_sulfur_box.svg",
-    )
+    if generate_figures:
+        save_group_boxplot_svg(
+            grouped_sulfur,
+            title="总二氧化硫分布（按质量分组）",
+            y_label="total_sulfur_dioxide",
+            path=fig_path("total_sulfur_box"),
+        )
 
     grouped_free = {
         "普通酒(quality<7)": [r["free_sulfur_dioxide"] for r in rows if r["quality_label"] == 0],
         "高质量酒(>=7)": [r["free_sulfur_dioxide"] for r in rows if r["quality_label"] == 1],
     }
-    save_group_boxplot_svg(
-        grouped_free,
-        title="游离二氧化硫分布（按质量分组）",
-        y_label="free_sulfur_dioxide",
-        path=FIG_DIR / "free_sulfur_box.svg",
-    )
+    if generate_figures:
+        save_group_boxplot_svg(
+            grouped_free,
+            title="游离二氧化硫分布（按质量分组）",
+            y_label="free_sulfur_dioxide",
+            path=fig_path("free_sulfur_box"),
+        )
 
     # 固定酸度 vs 质量分数：小提琴 + 散点
     quality_buckets = {}
     for r in rows:
         quality_buckets.setdefault(int(r["quality"]), []).append(r["fixed_acidity"])
-    save_violin_scatter_svg(
-        quality_buckets,
-        title="不同质量分数下的固定酸度分布",
-        x_label="quality",
-        y_label="fixed_acidity",
-        path=FIG_DIR / "fixed_acidity_violin.svg",
-    )
+    if generate_figures:
+        save_violin_scatter_svg(
+            quality_buckets,
+            title="不同质量分数下的固定酸度分布",
+            x_label="quality",
+            y_label="fixed_acidity",
+            path=fig_path("fixed_acidity_violin"),
+        )
 
     # 硫化物比例分析（free/total）按质量分组
     ratio_groups = {"普通酒(quality<7)": [], "高质量酒(>=7)": []}
@@ -841,12 +851,13 @@ def main(
         ratio = r["free_sulfur_dioxide"] / r["total_sulfur_dioxide"] if r["total_sulfur_dioxide"] else 0
         bucket = "高质量酒(>=7)" if r["quality_label"] == 1 else "普通酒(quality<7)"
         ratio_groups[bucket].append(ratio)
-    save_group_boxplot_svg(
-        ratio_groups,
-        title="硫化物比例 (free/total) 分布",
-        y_label="比例",
-        path=FIG_DIR / "sulfur_ratio_box.svg",
-    )
+    if generate_figures:
+        save_group_boxplot_svg(
+            ratio_groups,
+            title="硫化物比例 (free/total) 分布",
+            y_label="比例",
+            path=fig_path("sulfur_ratio_box"),
+        )
 
     train_rows, test_rows = train_test_split(rows, test_ratio=0.2, seed=42)
     X_train, means, stdevs = standardize(train_rows, feature_names)
@@ -860,7 +871,8 @@ def main(
 
     test_probs = predict_proba(weights, X_test)
     test_preds = [1 if p >= 0.5 else 0 for p in test_probs]
-    save_confusion_svg(y_test, test_preds, "Logistic Regression Confusion", FIG_DIR / "log_reg_confusion.svg")
+    if generate_figures:
+        save_confusion_svg(y_test, test_preds, "Logistic Regression Confusion", fig_path("log_reg_confusion"))
 
     metrics = {
         "model": "custom_logistic_regression",
@@ -872,9 +884,10 @@ def main(
     with open(OUTPUT_DIR / "model_metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
-    save_interactive_dashboard(
-        rows, feature_names, correlation_matrix, fields_for_corr, OUTPUT_DIR / "interactive_dashboard.html"
-    )
+    if generate_figures:
+        save_interactive_dashboard(
+            rows, feature_names, correlation_matrix, fields_for_corr, OUTPUT_DIR / "interactive_dashboard.html"
+        )
 
     print(json.dumps(metrics, indent=2))
 
@@ -917,5 +930,22 @@ if __name__ == "__main__":
         "--deepseek-api-url",
         help="可选，自定义 DeepSeek 网关地址，便于走代理或私有网关。",
     )
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="跳过可视化文件生成（仅输出指标与链路回答）",
+    )
+    parser.add_argument(
+        "--figure-format",
+        default="svg",
+        choices=["svg"],
+        help="可视化输出格式，当前支持 svg，运行后会在 reports/figures 下生成对应扩展名。",
+    )
     args = parser.parse_args()
-    main(question=args.ask, deepseek_api_key=args.deepseek_api_key, deepseek_api_url=args.deepseek_api_url)
+    main(
+        question=args.ask,
+        deepseek_api_key=args.deepseek_api_key,
+        deepseek_api_url=args.deepseek_api_url,
+        generate_figures=not args.no_figures,
+        figure_format=args.figure_format,
+    )
