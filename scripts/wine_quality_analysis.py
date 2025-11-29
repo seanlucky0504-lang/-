@@ -31,12 +31,32 @@ class DeepSeekChain:
         self.model = model
 
     @classmethod
-    def from_env(cls) -> "DeepSeekChain | None":
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-        if not api_key:
+    def from_env(
+        cls, api_key: str | None = None, api_url: str | None = None
+    ) -> "DeepSeekChain | None":
+        """Resolve DeepSeek credentials from explicit args, env vars or .env file."""
+
+        default_url = "https://api.deepseek.com/chat/completions"
+
+        if api_key:
+            resolved_key = api_key
+        else:
+            resolved_key = os.getenv("DEEPSEEK_API_KEY")
+
+        if not resolved_key:
+            env_file = Path(".env")
+            if env_file.exists():
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    if line.strip().startswith("DEEPSEEK_API_KEY="):
+                        raw_value = line.split("=", 1)[1].strip()
+                        resolved_key = raw_value.strip("\"").strip("'")
+                        break
+
+        if not resolved_key:
             return None
-        api_url = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/chat/completions")
-        return cls(api_key=api_key, api_url=api_url)
+
+        resolved_url = api_url or os.getenv("DEEPSEEK_API_URL", default_url)
+        return cls(api_key=resolved_key, api_url=resolved_url)
 
     def run(self, question: str, context: str) -> str:
         payload = {
@@ -567,7 +587,7 @@ def save_interactive_dashboard(
     path.write_text(html, encoding="utf-8")
 
 
-def main(question: str | None = None):
+def main(question: str | None = None, api_key: str | None = None, api_url: str | None = None):
     raw_rows = load_data()
     rows = preprocess_data(raw_rows)
     feature_names = [k for k in rows[0].keys() if k not in {"quality", "quality_label"}]
@@ -614,7 +634,7 @@ def main(question: str | None = None):
 
     if question:
         context = build_eda_context(rows, feature_names)
-        chain = DeepSeekChain.from_env()
+        chain = DeepSeekChain.from_env(api_key=api_key, api_url=api_url)
         if chain:
             answer = chain.run(question, context)
         else:
@@ -638,5 +658,13 @@ if __name__ == "__main__":
             "需要提供 DEEPSEEK_API_KEY 环境变量。"
         ),
     )
+    parser.add_argument(
+        "--deepseek-api-key",
+        help="显式传入 DeepSeek API key（优先级高于环境变量或 .env）。",
+    )
+    parser.add_argument(
+        "--deepseek-api-url",
+        help="可选，覆盖默认的 DeepSeek API URL。",
+    )
     args = parser.parse_args()
-    main(question=args.ask)
+    main(question=args.ask, api_key=args.deepseek_api_key, api_url=args.deepseek_api_url)
