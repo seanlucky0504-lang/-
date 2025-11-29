@@ -13,6 +13,15 @@
 # 基础流程（预处理 + EDA + 训练评估）
 python scripts/wine_quality_analysis.py
 
+# 附带 DeepSeek 链式探索，可用环境变量或 CLI 直传密钥
+DEEPSEEK_API_KEY=your_key \
+python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程建议"
+
+# 或者命令行直传，便于在 CI/一次性调用时使用
+python scripts/wine_quality_analysis.py \
+  --ask "分析酒精度与质量的关系" \
+  --deepseek-api-key your_key \
+  --deepseek-api-url https://api.deepseek.com/chat/completions
 # 附带 DeepSeek 链式探索，需提前设置 DEEPSEEK_API_KEY
 DEEPSEEK_API_KEY=your_key \
 python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程建议"
