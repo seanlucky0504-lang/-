@@ -31,17 +31,12 @@ class DeepSeekChain:
         self.model = model
 
     @classmethod
-    def from_env(
-        cls, api_key: str | None = None, api_url: str | None = None
-    ) -> "DeepSeekChain | None":
-        """Support CLI/env override for API key & URL."""
-
-        resolved_key = api_key or os.getenv("DEEPSEEK_API_KEY")
-        if not resolved_key:
+    def from_env(cls) -> "DeepSeekChain | None":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
             return None
-
-        resolved_url = api_url or os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/chat/completions")
-        return cls(api_key=resolved_key, api_url=resolved_url)
+        api_url = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/chat/completions")
+        return cls(api_key=api_key, api_url=api_url)
 
     def run(self, question: str, context: str) -> str:
         payload = {
@@ -572,11 +567,7 @@ def save_interactive_dashboard(
     path.write_text(html, encoding="utf-8")
 
 
-def main(
-    question: str | None = None,
-    deepseek_api_key: str | None = None,
-    deepseek_api_url: str | None = None,
-):
+def main(question: str | None = None):
     raw_rows = load_data()
     rows = preprocess_data(raw_rows)
     feature_names = [k for k in rows[0].keys() if k not in {"quality", "quality_label"}]
@@ -623,7 +614,7 @@ def main(
 
     if question:
         context = build_eda_context(rows, feature_names)
-        chain = DeepSeekChain.from_env(api_key=deepseek_api_key, api_url=deepseek_api_url)
+        chain = DeepSeekChain.from_env()
         if chain:
             answer = chain.run(question, context)
         else:
@@ -647,13 +638,5 @@ if __name__ == "__main__":
             "需要提供 DEEPSEEK_API_KEY 环境变量。"
         ),
     )
-    parser.add_argument(
-        "--deepseek-api-key",
-        help="可选，直接通过命令行传入 DeepSeek API Key（优先于环境变量）。",
-    )
-    parser.add_argument(
-        "--deepseek-api-url",
-        help="可选，自定义 DeepSeek 网关地址，便于走代理或私有网关。",
-    )
     args = parser.parse_args()
-    main(question=args.ask, deepseek_api_key=args.deepseek_api_key, deepseek_api_url=args.deepseek_api_url)
+    main(question=args.ask)
