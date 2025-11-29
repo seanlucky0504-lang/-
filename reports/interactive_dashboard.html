@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang='zh'>
+<head>
+  <meta charset='utf-8'/>
+  <title>红酒质量交互式分析板</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 24px; background: #f7f7f7; }
+    h1 { margin-bottom: 4px; }
+    .card { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 16px; }
+    .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    select { padding: 6px 8px; border-radius: 8px; border: 1px solid #ccc; }
+    svg { background: #fff; border: 1px solid #e1e1e1; border-radius: 8px; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 8px; background: #eef2ff; color: #3949ab; margin-right: 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>红酒质量交互式分析板</h1>
+  <div class='card'>
+    <div class='badge'>数据集：UCI 红酒质量（红葡萄酒）</div>
+    <div class='badge'>样本量：19</div>
+    <div class='badge'>可选特征：11</div>
+    <p>左侧选择任一理化特征查看分布直方图，右侧可切换特征与质量分数的散点关系，底部可查看相关系数热力图。</p>
+  </div>
+
+  <div class='charts'>
+    <div class='card'>
+      <h3>分布直方图</h3>
+      <label>选择特征：
+        <select id='histFeature'></select>
+      </label>
+      <svg id='histogram' width='640' height='360'></svg>
+    </div>
+    <div class='card'>
+      <h3>质量散点图</h3>
+      <label>横轴特征：
+        <select id='scatterFeature'></select>
+      </label>
+      <svg id='scatter' width='640' height='360'></svg>
+    </div>
+  </div>
+
+  <div class='card'>
+    <h3>相关系数热力图</h3>
+    <svg id='corr' width='800' height='500'></svg>
+  </div>
+
+  <script>
+    const features = ["fixed_acidity", "volatile_acidity", "citric_acid", "residual_sugar", "chlorides", "free_sulfur_dioxide", "total_sulfur_dioxide", "density", "pH", "sulphates", "alcohol"];
+    const data = [{"fixed_acidity": 7.4, "volatile_acidity": 0.7, "citric_acid": 0.0, "residual_sugar": 1.9, "chlorides": 0.076, "free_sulfur_dioxide": 11.0, "total_sulfur_dioxide": 34.0, "density": 0.9978, "pH": 3.51, "sulphates": 0.56, "alcohol": 9.4, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 7.8, "volatile_acidity": 0.88, "citric_acid": 0.0, "residual_sugar": 2.6, "chlorides": 0.098, "free_sulfur_dioxide": 25.0, "total_sulfur_dioxide": 67.0, "density": 0.9968, "pH": 3.2, "sulphates": 0.68, "alcohol": 9.8, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 7.8, "volatile_acidity": 0.76, "citric_acid": 0.04, "residual_sugar": 2.3, "chlorides": 0.092, "free_sulfur_dioxide": 15.0, "total_sulfur_dioxide": 54.0, "density": 0.997, "pH": 3.26, "sulphates": 0.65, "alcohol": 9.8, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 11.2, "volatile_acidity": 0.28, "citric_acid": 0.56, "residual_sugar": 1.9, "chlorides": 0.075, "free_sulfur_dioxide": 17.0, "total_sulfur_dioxide": 60.0, "density": 0.998, "pH": 3.16, "sulphates": 0.58, "alcohol": 9.8, "quality": 6.0, "quality_label": 0}, {"fixed_acidity": 7.4, "volatile_acidity": 0.66, "citric_acid": 0.0, "residual_sugar": 1.8, "chlorides": 0.075, "free_sulfur_dioxide": 13.0, "total_sulfur_dioxide": 40.0, "density": 0.9978, "pH": 3.51, "sulphates": 0.56, "alcohol": 9.4, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 7.9, "volatile_acidity": 0.6, "citric_acid": 0.06, "residual_sugar": 1.6, "chlorides": 0.069, "free_sulfur_dioxide": 15.0, "total_sulfur_dioxide": 59.0, "density": 0.9964, "pH": 3.3, "sulphates": 0.46, "alcohol": 9.4, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 7.3, "volatile_acidity": 0.65, "citric_acid": 0.0, "residual_sugar": 1.2, "chlorides": 0.065, "free_sulfur_dioxide": 15.0, "total_sulfur_dioxide": 21.0, "density": 0.9946, "pH": 3.39, "sulphates": 0.47, "alcohol": 10.0, "quality": 7.0, "quality_label": 1}, {"fixed_acidity": 7.8, "volatile_acidity": 0.58, "citric_acid": 0.02, "residual_sugar": 2.0, "chlorides": 0.073, "free_sulfur_dioxide": 9.0, "total_sulfur_dioxide": 18.0, "density": 0.9968, "pH": 3.36, "sulphates": 0.57, "alcohol": 9.5, "quality": 7.0, "quality_label": 1}, {"fixed_acidity": 7.5, "volatile_acidity": 0.5, "citric_acid": 0.36, "residual_sugar": 6.1, "chlorides": 0.071, "free_sulfur_dioxide": 17.0, "total_sulfur_dioxide": 102.0, "density": 0.9978, "pH": 3.35, "sulphates": 0.8, "alcohol": 10.5, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 5.6, "volatile_acidity": 0.615, "citric_acid": 0.0, "residual_sugar": 1.6, "chlorides": 0.089, "free_sulfur_dioxide": 16.0, "total_sulfur_dioxide": 59.0, "density": 0.9943, "pH": 3.58, "sulphates": 0.52, "alcohol": 9.9, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 7.8, "volatile_acidity": 0.61, "citric_acid": 0.29, "residual_sugar": 1.6, "chlorides": 0.114, "free_sulfur_dioxide": 9.0, "total_sulfur_dioxide": 29.0, "density": 0.9974, "pH": 3.26, "sulphates": 1.56, "alcohol": 9.1, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 8.9, "volatile_acidity": 0.62, "citric_acid": 0.18, "residual_sugar": 3.8, "chlorides": 0.176, "free_sulfur_dioxide": 52.0, "total_sulfur_dioxide": 145.0, "density": 0.9986, "pH": 3.16, "sulphates": 0.88, "alcohol": 9.2, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 8.9, "volatile_acidity": 0.62, "citric_acid": 0.19, "residual_sugar": 3.9, "chlorides": 0.17, "free_sulfur_dioxide": 51.0, "total_sulfur_dioxide": 148.0, "density": 0.9986, "pH": 3.17, "sulphates": 0.93, "alcohol": 9.2, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 8.5, "volatile_acidity": 0.28, "citric_acid": 0.56, "residual_sugar": 1.8, "chlorides": 0.092, "free_sulfur_dioxide": 35.0, "total_sulfur_dioxide": 103.0, "density": 0.9969, "pH": 3.3, "sulphates": 0.75, "alcohol": 10.5, "quality": 7.0, "quality_label": 1}, {"fixed_acidity": 8.1, "volatile_acidity": 0.56, "citric_acid": 0.28, "residual_sugar": 1.7, "chlorides": 0.368, "free_sulfur_dioxide": 16.0, "total_sulfur_dioxide": 56.0, "density": 0.9968, "pH": 3.11, "sulphates": 1.28, "alcohol": 9.3, "quality": 5.0, "quality_label": 0}, {"fixed_acidity": 7.4, "volatile_acidity": 0.59, "citric_acid": 0.08, "residual_sugar": 4.4, "chlorides": 0.086, "free_sulfur_dioxide": 6.0, "total_sulfur_dioxide": 29.0, "density": 0.9974, "pH": 3.38, "sulphates": 0.5, "alcohol": 9.0, "quality": 4.0, "quality_label": 0}, {"fixed_acidity": 7.9, "volatile_acidity": 0.32, "citric_acid": 0.51, "residual_sugar": 1.8, "chlorides": 0.341, "free_sulfur_dioxide": 17.0, "total_sulfur_dioxide": 56.0, "density": 0.9969, "pH": 3.04, "sulphates": 1.08, "alcohol": 9.2, "quality": 6.0, "quality_label": 0}, {"fixed_acidity": 8.9, "volatile_acidity": 0.22, "citric_acid": 0.48, "residual_sugar": 1.8, "chlorides": 0.077, "free_sulfur_dioxide": 29.0, "total_sulfur_dioxide": 60.0, "density": 0.9968, "pH": 3.39, "sulphates": 0.53, "alcohol": 9.4, "quality": 6.0, "quality_label": 0}, {"fixed_acidity": 7.6, "volatile_acidity": 0.39, "citric_acid": 0.31, "residual_sugar": 2.3, "chlorides": 0.082, "free_sulfur_dioxide": 23.0, "total_sulfur_dioxide": 71.0, "density": 0.9982, "pH": 3.52, "sulphates": 0.65, "alcohol": 9.7, "quality": 5.0, "quality_label": 0}];
+    const corr = [[1.0, -0.46828108462702306, 0.6079938184941021, 0.03640501648795492, 0.09003542677693344, 0.3948259990225286, 0.3381449924180336, 0.5461291071950142, -0.5869540276461902, 0.11000915189505918, -0.07601072448551661, 0.24196509181572448], [-0.46828108462702306, 1.0, -0.8840398390694798, 0.09455477762565993, -0.13052746289263947, -0.13545795641209982, -0.13486052731183443, -0.12028105253330043, 0.10970608475557636, -0.03717811152644665, -0.15451932043585168, -0.43155362641500034], [0.6079938184941021, -0.8840398390694798, 1.0, 0.0422620534942525, 0.30143845907572986, 0.2597796469458421, 0.3181069125215002, 0.29876364270812783, -0.4265966306892883, 0.36085850248287016, 0.18717615179214353, 0.3125173032912356], [0.03640501648795492, 0.09455477762565993, 0.0422620534942525, 1.0, -0.06627647478107868, 0.2752818572644896, 0.5259646119600883, 0.4901679812449498, -0.10028812492668539, 0.027466608364526128, 0.1053683556995831, -0.4427129098233269], [0.09003542677693344, -0.13052746289263947, 0.30143845907572986, -0.06627647478107868, 1.0, 0.1702266200832616, 0.18791293521801894, 0.0841541445429672, -0.6729388418249417, 0.6597476763418278, -0.3858310662252483, -0.07286285379467829], [0.3948259990225286, -0.13545795641209982, 0.2597796469458421, 0.2752818572644896, 0.1702266200832616, 1.0, 0.9081998477855532, 0.3773745573283387, -0.33801575372530235, 0.12131063000495511, 0.020629020046340357, 0.05308049028625209], [0.3381449924180336, -0.13486052731183443, 0.3181069125215002, 0.5259646119600883, 0.18791293521801894, 0.9081998477855532, 1.0, 0.46856175490409474, -0.3515454232492939, 0.1809318288233799, 0.15375239427538206, -0.14084653794894636], [0.5461291071950142, -0.12028105253330043, 0.29876364270812783, 0.4901679812449498, 0.0841541445429672, 0.3773745573283387, 0.46856175490409474, 1.0, -0.2773693099963878, 0.2663049995908201, -0.2939954626647209, -0.34465072691524956], [-0.5869540276461902, 0.10970608475557636, -0.4265966306892883, -0.10028812492668539, -0.6729388418249417, -0.33801575372530235, -0.3515454232492939, -0.2773693099963878, 1.0, -0.5718064681259559, 0.22784714287261001, -0.08544776802575299], [0.11000915189505918, -0.03717811152644665, 0.36085850248287016, 0.027466608364526128, 0.6597476763418278, 0.12131063000495511, 0.1809318288233799, 0.2663049995908201, -0.5718064681259559, 1.0, -0.30096575348935733, -0.14081332672759758], [-0.07601072448551661, -0.15451932043585168, 0.18717615179214353, 0.1053683556995831, -0.3858310662252483, 0.020629020046340357, 0.15375239427538206, -0.2939954626647209, 0.22784714287261001, -0.30096575348935733, 1.0, 0.41940363926471524], [0.24196509181572448, -0.43155362641500034, 0.3125173032912356, -0.4427129098233269, -0.07286285379467829, 0.05308049028625209, -0.14084653794894636, -0.34465072691524956, -0.08544776802575299, -0.14081332672759758, 0.41940363926471524, 1.0]];
+    const corrFields = ["fixed_acidity", "volatile_acidity", "citric_acid", "residual_sugar", "chlorides", "free_sulfur_dioxide", "total_sulfur_dioxide", "density", "pH", "sulphates", "alcohol", "quality"];
+
+    function fillOptions() {
+      const histSel = document.getElementById('histFeature');
+      const scatterSel = document.getElementById('scatterFeature');
+      features.forEach(f => {
+        const opt1 = document.createElement('option'); opt1.value = f; opt1.textContent = f; histSel.appendChild(opt1);
+        const opt2 = document.createElement('option'); opt2.value = f; opt2.textContent = f; scatterSel.appendChild(opt2);
+      });
+      histSel.value = features[0];
+      scatterSel.value = features[0];
+    }
+
+    function drawHistogram(feature) {
+      const svg = document.getElementById('histogram');
+      svg.innerHTML = '';
+      const width = svg.clientWidth, height = svg.clientHeight;
+      const margin = {top: 20, right: 20, bottom: 40, left: 40};
+      const values = data.map(d => d[feature]);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const bins = 12;
+      const binSize = (max - min) / bins || 1;
+      const counts = Array.from({length: bins}, () => 0);
+      values.forEach(v => {
+        const idx = Math.min(bins - 1, Math.floor((v - min) / binSize));
+        counts[idx] += 1;
+      });
+      const maxCount = Math.max(...counts) || 1;
+      counts.forEach((c, i) => {
+        const barWidth = (width - margin.left - margin.right) / bins;
+        const x = margin.left + i * barWidth;
+        const barHeight = (c / maxCount) * (height - margin.top - margin.bottom);
+        const y = height - margin.bottom - barHeight;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', barWidth - 4);
+        rect.setAttribute('height', barHeight);
+        rect.setAttribute('fill', '#4f83cc');
+        svg.appendChild(rect);
+      });
+      // Axes labels
+      const xlabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      xlabel.textContent = feature;
+      xlabel.setAttribute('x', width / 2 - 20);
+      xlabel.setAttribute('y', height - 8);
+      xlabel.setAttribute('font-size', '12');
+      svg.appendChild(xlabel);
+      const ylabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      ylabel.textContent = '计数';
+      ylabel.setAttribute('x', 10);
+      ylabel.setAttribute('y', 16);
+      ylabel.setAttribute('font-size', '12');
+      svg.appendChild(ylabel);
+    }
+
+    function drawScatter(feature) {
+      const svg = document.getElementById('scatter');
+      svg.innerHTML = '';
+      const width = svg.clientWidth, height = svg.clientHeight;
+      const margin = {top: 20, right: 20, bottom: 40, left: 50};
+      const values = data.map(d => d[feature]);
+      const qualities = data.map(d => d.quality);
+      const minX = Math.min(...values), maxX = Math.max(...values);
+      const minY = Math.min(...qualities), maxY = Math.max(...qualities);
+      const scaleX = v => margin.left + ((v - minX) / (maxX - minX || 1)) * (width - margin.left - margin.right);
+      const scaleY = v => height - margin.bottom - ((v - minY) / (maxY - minY || 1)) * (height - margin.top - margin.bottom);
+      data.forEach(d => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', scaleX(d[feature]));
+        circle.setAttribute('cy', scaleY(d.quality));
+        circle.setAttribute('r', 3);
+        circle.setAttribute('fill', d.quality_label ? '#2e7d32' : '#c62828');
+        circle.setAttribute('opacity', '0.7');
+        svg.appendChild(circle);
+      });
+      // axes
+      const axisX = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      axisX.setAttribute('x1', margin.left);
+      axisX.setAttribute('y1', height - margin.bottom);
+      axisX.setAttribute('x2', width - margin.right);
+      axisX.setAttribute('y2', height - margin.bottom);
+      axisX.setAttribute('stroke', '#555');
+      svg.appendChild(axisX);
+      const axisY = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      axisY.setAttribute('x1', margin.left);
+      axisY.setAttribute('y1', margin.top);
+      axisY.setAttribute('x2', margin.left);
+      axisY.setAttribute('y2', height - margin.bottom);
+      axisY.setAttribute('stroke', '#555');
+      svg.appendChild(axisY);
+      const xlabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      xlabel.textContent = feature;
+      xlabel.setAttribute('x', width / 2 - 20);
+      xlabel.setAttribute('y', height - 8);
+      xlabel.setAttribute('font-size', '12');
+      svg.appendChild(xlabel);
+      const ylabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      ylabel.textContent = 'quality';
+      ylabel.setAttribute('x', 8);
+      ylabel.setAttribute('y', 16);
+      ylabel.setAttribute('font-size', '12');
+      svg.appendChild(ylabel);
+    }
+
+    function drawCorrelation() {
+      const svg = document.getElementById('corr');
+      svg.innerHTML = '';
+      const cell = 28;
+      const padding = 120;
+      corrFields.forEach((f, i) => {
+        const textX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textX.textContent = f;
+        textX.setAttribute('x', padding + i * cell + 2);
+        textX.setAttribute('y', 40);
+        textX.setAttribute('font-size', '10');
+        textX.setAttribute('transform', 'rotate(-45,' + (padding + i * cell + 2) + ', 40)');
+        svg.appendChild(textX);
+        const textY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textY.textContent = f;
+        textY.setAttribute('x', 20);
+        textY.setAttribute('y', padding + i * cell + 15);
+        textY.setAttribute('font-size', '10');
+        svg.appendChild(textY);
+      });
+      corr.forEach((row, i) => {
+        row.forEach((val, j) => {
+          const intensity = Math.floor((val + 1) / 2 * 255);
+          const color = 'rgb(' + (255 - intensity) + ',' + (255 - intensity) + ',255)';
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', padding + j * cell);
+          rect.setAttribute('y', padding + i * cell);
+          rect.setAttribute('width', cell - 2);
+          rect.setAttribute('height', cell - 2);
+          rect.setAttribute('fill', color);
+          svg.appendChild(rect);
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.textContent = val.toFixed(2);
+          txt.setAttribute('x', padding + j * cell + 2);
+          txt.setAttribute('y', padding + i * cell + 14);
+          txt.setAttribute('font-size', '9');
+          svg.appendChild(txt);
+        });
+      });
+    }
+
+    function init() {
+      fillOptions();
+      drawHistogram(features[0]);
+      drawScatter(features[0]);
+      drawCorrelation();
+      document.getElementById('histFeature').addEventListener('change', e => drawHistogram(e.target.value));
+      document.getElementById('scatterFeature').addEventListener('change', e => drawScatter(e.target.value));
+    }
+
+    init();
+  </script>
+</body>
+</html>
