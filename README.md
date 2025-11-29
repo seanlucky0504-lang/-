@@ -37,6 +37,7 @@ python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程�
 
 > 说明：`scripts/wine_quality_analysis.py` 会读取 `DEEPSEEK_API_KEY`（必填）和 `DEEPSEEK_API_URL`（可选，缺省为官方地址），并在 `reports/deepseek_chain_output.txt` 中保存返回内容。
 
+
 输出位置：
 - `reports/summary_stats.csv`：各特征统计量
 - `reports/model_metrics.json`：评估指标（F1、ROC-AUC）与评估标准说明
