@@ -1,0 +1,5 @@
+
+<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'>
+  <text x='100.0' y='24' font-size='16'>质量层级占比</text>
+  <path d='M 180.0,40.0 A 140,140 0 0 1 225.5,47.6 L 206.0,104.3 A 80,80 0 0 0 180.0,100.0 Z' fill='#2b8cbe' stroke='#fff' stroke-width='2' /><text x='198.1' y='71.5' font-size='12' text-anchor='middle' fill='#08306b'>低质量(<=4) 1</text><path d='M 225.5,47.6 A 140,140 0 1 1 62.8,103.4 L 113.0,136.2 A 80,80 0 1 0 206.0,104.3 Z' fill='#7bccc4' stroke='#fff' stroke-width='2' /><text x='215.7' y='284.0' font-size='12' text-anchor='middle' fill='#08306b'>中等(5-6) 15</text><path d='M 62.8,103.4 A 140,140 0 0 1 180.0,40.0 L 180.0,100.0 A 80,80 0 0 0 113.0,136.2 Z' fill='#bae4bc' stroke='#fff' stroke-width='2' /><text x='127.6' y='83.3' font-size='12' text-anchor='middle' fill='#08306b'>高质量(>=7) 3</text>
+</svg>

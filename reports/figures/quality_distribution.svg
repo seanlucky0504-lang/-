@@ -1,0 +1,5 @@
+
+<svg xmlns='http://www.w3.org/2000/svg' width='260' height='300'>
+  <text x='70.0' y='20' font-size='16'>Quality Distribution</text>
+  <rect x="50" y="243.33333333333331" width="30" height="16.666666666666664" fill="#2c7fb8" /><text x="55" y="285" font-size="12">4.0</text><text x="55" y="238.33333333333331" font-size="12">1</text><rect x="90" y="60.0" width="30" height="200.0" fill="#2c7fb8" /><text x="95" y="285" font-size="12">5.0</text><text x="95" y="55.0" font-size="12">12</text><rect x="130" y="210.0" width="30" height="50.0" fill="#2c7fb8" /><text x="135" y="285" font-size="12">6.0</text><text x="135" y="205.0" font-size="12">3</text><rect x="170" y="210.0" width="30" height="50.0" fill="#2c7fb8" /><text x="175" y="285" font-size="12">7.0</text><text x="175" y="205.0" font-size="12">3</text>
+</svg>
