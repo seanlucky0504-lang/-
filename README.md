@@ -60,7 +60,14 @@ python scripts/wine_quality_analysis.py \
 输出位置：
 - `reports/summary_stats.csv`：各特征统计量
 - `reports/model_metrics.json`：评估指标（F1、ROC-AUC）与评估标准说明
-- `reports/figures/*.svg`：质量分布、相关性热力图、混淆矩阵
+- `reports/figures/*.svg`：
+  - `quality_distribution.svg` 质量分布柱状图
+  - `quality_donut.svg` 质量层级（低/中/高）环形图
+  - `correlation_heatmap.svg` 特征相关性热力图
+  - `log_reg_confusion.svg` 逻辑回归混淆矩阵
+  - `total_sulfur_box.svg` / `free_sulfur_box.svg` 硫化物分布箱线图（按质量分组）
+  - `sulfur_ratio_box.svg` 硫化物比例（free/total）分布
+  - `fixed_acidity_violin.svg` 不同质量分数下的固定酸度小提琴+散点
 - `reports/interactive_dashboard.html`：交互式可视化（直方图、散点图、相关系数热力图，可在浏览器直接打开，无需服务器）
 - `reports/deepseek_chain_output.txt`：DeepSeek 返回的中文探索建议
 

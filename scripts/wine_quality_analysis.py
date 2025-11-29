@@ -195,6 +195,169 @@ def save_bar_svg(counts: Counter, title: str, path: Path) -> None:
     path.write_text(svg)
 
 
+def save_group_boxplot_svg(
+    grouped_values: Dict[str, List[float]],
+    title: str,
+    y_label: str,
+    path: Path,
+) -> None:
+    """绘制分组箱线图（最小值/第一四分位/中位数/第三四分位/最大值）。"""
+
+    categories = list(grouped_values.keys())
+    width_per_group = 160
+    svg_width = width_per_group * len(categories) + 80
+    svg_height = 320
+    chart_top, chart_bottom = 40, 260
+
+    # 计算全局范围用于缩放
+    all_values = [v for values in grouped_values.values() for v in values]
+    if not all_values:
+        path.write_text("<svg xmlns='http://www.w3.org/2000/svg'><text x='10' y='20'>无数据</text></svg>")
+        return
+    global_min, global_max = min(all_values), max(all_values)
+    scale = lambda v: chart_bottom - (v - global_min) / (global_max - global_min or 1) * (chart_bottom - chart_top)
+
+    shapes = []
+    for idx, (cat, values) in enumerate(grouped_values.items()):
+        sorted_vals = sorted(values)
+        q1 = statistics.quantiles(sorted_vals, n=4)[0]
+        median = statistics.median(sorted_vals)
+        q3 = statistics.quantiles(sorted_vals, n=4)[-1]
+        min_v, max_v = sorted_vals[0], sorted_vals[-1]
+
+        x_center = 60 + idx * width_per_group
+        box_width = 60
+        # Whiskers
+        shapes.append(f"<line x1='{x_center}' y1='{scale(min_v)}' x2='{x_center}' y2='{scale(max_v)}' stroke='#555' />")
+        # Box
+        shapes.append(
+            f"<rect x='{x_center - box_width/2}' y='{scale(q3)}' width='{box_width}' height='{abs(scale(q3) - scale(q1))}' fill='#cfe2f3' stroke='#08519c' />"
+        )
+        # Median
+        shapes.append(f"<line x1='{x_center - box_width/2}' y1='{scale(median)}' x2='{x_center + box_width/2}' y2='{scale(median)}' stroke='#08306b' stroke-width='2' />")
+        # Whisker caps
+        for y in (scale(min_v), scale(max_v)):
+            shapes.append(f"<line x1='{x_center - box_width/4}' y1='{y}' x2='{x_center + box_width/4}' y2='{y}' stroke='#555' />")
+        # Label
+        shapes.append(f"<text x='{x_center - 20}' y='{svg_height - 20}' font-size='12'>{cat}</text>")
+
+    # Y-axis labels
+    labels = []
+    for i in range(5):
+        v = global_min + i * (global_max - global_min) / 4
+        y = scale(v)
+        labels.append(f"<text x='10' y='{y + 4}' font-size='11'>{v:.1f}</text>")
+        labels.append(f"<line x1='40' y1='{y}' x2='{svg_width - 20}' y2='{y}' stroke='#eee' />")
+
+    svg = f"""
+<svg xmlns='http://www.w3.org/2000/svg' width='{svg_width}' height='{svg_height}'>
+  <text x='{svg_width/2 - 80}' y='20' font-size='16'>{title}</text>
+  <text x='10' y='30' font-size='12'>{y_label}</text>
+  {''.join(labels)}
+  {''.join(shapes)}
+</svg>
+"""
+    path.write_text(svg)
+
+
+def save_violin_scatter_svg(
+    values_by_quality: Dict[int, List[float]], title: str, x_label: str, y_label: str, path: Path
+) -> None:
+    """用简化小提琴（核密度条）+散点展示数值分布。"""
+
+    svg_width, svg_height = 700, 360
+    chart_left, chart_right, chart_top, chart_bottom = 70, 640, 40, 300
+    all_values = [v for vals in values_by_quality.values() for v in vals]
+    if not all_values:
+        path.write_text("<svg xmlns='http://www.w3.org/2000/svg'><text x='10' y='20'>无数据</text></svg>")
+        return
+    min_v, max_v = min(all_values), max(all_values)
+    y_scale = lambda v: chart_bottom - (v - min_v) / (max_v - min_v or 1) * (chart_bottom - chart_top)
+
+    groups = sorted(values_by_quality.keys())
+    shapes = []
+    for idx, g in enumerate(groups):
+        vals = sorted(values_by_quality[g])
+        x_center = chart_left + idx * ((chart_right - chart_left) / max(len(groups) - 1, 1))
+
+        # Kernel-like vertical density: count per bin scaled左右
+        bins = 15
+        bin_size = (max_v - min_v) / bins or 1
+        counts = [0] * bins
+        for v in vals:
+            b = min(bins - 1, int((v - min_v) / bin_size))
+            counts[b] += 1
+        max_count = max(counts) or 1
+        for i, c in enumerate(counts):
+            y = chart_bottom - i * (chart_bottom - chart_top) / bins
+            half_width = (c / max_count) * 20
+            shapes.append(
+                f"<line x1='{x_center - half_width}' y1='{y}' x2='{x_center + half_width}' y2='{y}' stroke='#a6bddb' stroke-width='6' stroke-linecap='round' />"
+            )
+
+        # Scatter points with jitter
+        for v in vals:
+            jitter = (random.random() - 0.5) * 18
+            x = x_center + jitter
+            y = y_scale(v)
+            shapes.append(
+                f"<circle cx='{x:.1f}' cy='{y:.1f}' r='3' fill='#2b8cbe' fill-opacity='0.65' />"
+            )
+        shapes.append(f"<text x='{x_center - 12}' y='{svg_height - 12}' font-size='12'>{g}</text>")
+
+    svg = f"""
+<svg xmlns='http://www.w3.org/2000/svg' width='{svg_width}' height='{svg_height}'>
+  <text x='{svg_width/2 - 100}' y='20' font-size='16'>{title}</text>
+  <text x='{svg_width/2 - 20}' y='{svg_height - 4}' font-size='12'>{x_label}</text>
+  <text x='12' y='26' font-size='12'>{y_label}</text>
+  {''.join(shapes)}
+</svg>
+"""
+    path.write_text(svg)
+
+
+def save_quality_donut(counts: Dict[str, int], title: str, path: Path) -> None:
+    """生成简单环形图显示质量层级分布。"""
+
+    total = sum(counts.values()) or 1
+    svg_size = 360
+    radius_outer, radius_inner = 140, 80
+    cx = cy = svg_size / 2
+
+    def polar(angle: float, r: float) -> Tuple[float, float]:
+        return cx + r * math.cos(angle), cy + r * math.sin(angle)
+
+    start_angle = -math.pi / 2
+    paths = []
+    palette = ["#2b8cbe", "#7bccc4", "#bae4bc", "#f7fcb9"]
+    for idx, (label, count) in enumerate(counts.items()):
+        frac = count / total
+        end_angle = start_angle + 2 * math.pi * frac
+        x1, y1 = polar(start_angle, radius_outer)
+        x2, y2 = polar(end_angle, radius_outer)
+        x1i, y1i = polar(start_angle, radius_inner)
+        x2i, y2i = polar(end_angle, radius_inner)
+        large_arc = 1 if frac > 0.5 else 0
+        path_d = (
+            f"M {x1:.1f},{y1:.1f} A {radius_outer},{radius_outer} 0 {large_arc} 1 {x2:.1f},{y2:.1f} "
+            f"L {x2i:.1f},{y2i:.1f} A {radius_inner},{radius_inner} 0 {large_arc} 0 {x1i:.1f},{y1i:.1f} Z"
+        )
+        color = palette[idx % len(palette)]
+        paths.append(f"<path d='{path_d}' fill='{color}' stroke='#fff' stroke-width='2' />")
+        mid_angle = start_angle + (end_angle - start_angle) / 2
+        lx, ly = polar(mid_angle, (radius_outer + radius_inner) / 2)
+        paths.append(
+            f"<text x='{lx:.1f}' y='{ly:.1f}' font-size='12' text-anchor='middle' fill='#08306b'>{label} {count}</text>"
+        )
+        start_angle = end_angle
+
+    svg = f"""
+<svg xmlns='http://www.w3.org/2000/svg' width='{svg_size}' height='{svg_size}'>
+  <text x='{cx - 80}' y='24' font-size='16'>{title}</text>
+  {''.join(paths)}
+</svg>
+"""
+    path.write_text(svg)
 def build_eda_context(rows: List[Dict[str, float]], feature_names: List[str], top_k: int = 3) -> str:
     """构造发送给大模型的上下文，包含关键统计量。"""
     summary = summarize_numeric(rows, feature_names + ["quality"])
@@ -622,9 +785,68 @@ def main(
     quality_counts = Counter(r["quality"] for r in rows)
     save_bar_svg(quality_counts, "Quality Distribution", FIG_DIR / "quality_distribution.svg")
 
+    # 质量分层环形图（低/中/高）
+    banded = {"低质量(<=4)": 0, "中等(5-6)": 0, "高质量(>=7)": 0}
+    for q in quality_counts:
+        if q <= 4:
+            banded["低质量(<=4)"] += quality_counts[q]
+        elif q <= 6:
+            banded["中等(5-6)"] += quality_counts[q]
+        else:
+            banded["高质量(>=7)"] += quality_counts[q]
+    save_quality_donut(banded, "质量层级占比", FIG_DIR / "quality_donut.svg")
+
     fields_for_corr = feature_names + ["quality"]
     correlation_matrix = compute_correlation_matrix(rows, fields_for_corr)
     save_correlation_svg(fields_for_corr, correlation_matrix, FIG_DIR / "correlation_heatmap.svg")
+
+    # 硫化物分布箱线图（按高/普通质量分组）
+    grouped_sulfur = {
+        "普通酒(quality<7)": [r["total_sulfur_dioxide"] for r in rows if r["quality_label"] == 0],
+        "高质量酒(>=7)": [r["total_sulfur_dioxide"] for r in rows if r["quality_label"] == 1],
+    }
+    save_group_boxplot_svg(
+        grouped_sulfur,
+        title="总二氧化硫分布（按质量分组）",
+        y_label="total_sulfur_dioxide",
+        path=FIG_DIR / "total_sulfur_box.svg",
+    )
+
+    grouped_free = {
+        "普通酒(quality<7)": [r["free_sulfur_dioxide"] for r in rows if r["quality_label"] == 0],
+        "高质量酒(>=7)": [r["free_sulfur_dioxide"] for r in rows if r["quality_label"] == 1],
+    }
+    save_group_boxplot_svg(
+        grouped_free,
+        title="游离二氧化硫分布（按质量分组）",
+        y_label="free_sulfur_dioxide",
+        path=FIG_DIR / "free_sulfur_box.svg",
+    )
+
+    # 固定酸度 vs 质量分数：小提琴 + 散点
+    quality_buckets = {}
+    for r in rows:
+        quality_buckets.setdefault(int(r["quality"]), []).append(r["fixed_acidity"])
+    save_violin_scatter_svg(
+        quality_buckets,
+        title="不同质量分数下的固定酸度分布",
+        x_label="quality",
+        y_label="fixed_acidity",
+        path=FIG_DIR / "fixed_acidity_violin.svg",
+    )
+
+    # 硫化物比例分析（free/total）按质量分组
+    ratio_groups = {"普通酒(quality<7)": [], "高质量酒(>=7)": []}
+    for r in rows:
+        ratio = r["free_sulfur_dioxide"] / r["total_sulfur_dioxide"] if r["total_sulfur_dioxide"] else 0
+        bucket = "高质量酒(>=7)" if r["quality_label"] == 1 else "普通酒(quality<7)"
+        ratio_groups[bucket].append(ratio)
+    save_group_boxplot_svg(
+        ratio_groups,
+        title="硫化物比例 (free/total) 分布",
+        y_label="比例",
+        path=FIG_DIR / "sulfur_ratio_box.svg",
+    )
 
     train_rows, test_rows = train_test_split(rows, test_ratio=0.2, seed=42)
     X_train, means, stdevs = standardize(train_rows, feature_names)
