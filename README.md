@@ -62,17 +62,17 @@ python scripts/wine_quality_analysis.py --no-figures
 > 说明：`scripts/wine_quality_analysis.py` 会按 **CLI 参数优先、环境变量兜底** 的顺序读取 `DEEPSEEK_API_KEY`（必填）和 `DEEPSEEK_API_URL`（可选，缺省为官方地址），并在 `reports/deepseek_chain_output.txt` 中保存返回内容。
 
 输出位置：
-- 运行脚本时会在终端列出已生成的文件路径，默认格式为 **SVG**，可直接用浏览器打开；如需跳过绘图，使用 `--no-figures`。
+- 运行脚本时会在终端列出已生成的文件路径，默认格式为 **SVG**，可直接用浏览器打开；如需跳过绘图，使用 `--no-figures`。若需 **PNG**，加上 `--figure-format png`（需先 `pip install matplotlib`）。
 - `reports/summary_stats.csv`：各特征统计量
 - `reports/model_metrics.json`：评估指标（F1、ROC-AUC）与评估标准说明
-- `reports/figures/*.{svg}`（运行时生成，默认 SVG，支持通过 `--figure-format` 指定）:
-  - `quality_distribution.svg` 质量分布柱状图
-  - `quality_donut.svg` 质量层级（低/中/高）环形图
-  - `correlation_heatmap.svg` 特征相关性热力图
-  - `log_reg_confusion.svg` 逻辑回归混淆矩阵
-  - `total_sulfur_box.svg` / `free_sulfur_box.svg` 硫化物分布箱线图（按质量分组）
-  - `sulfur_ratio_box.svg` 硫化物比例（free/total）分布
-  - `fixed_acidity_violin.svg` 不同质量分数下的固定酸度小提琴+散点
+- `reports/figures/*.{svg|png}`（运行时生成，默认 SVG，可通过 `--figure-format` 指定）:
+  - `quality_distribution.*` 质量分布柱状图
+  - `quality_donut.*` 质量层级（低/中/高）环形图
+  - `correlation_heatmap.*` 特征相关性热力图
+  - `log_reg_confusion.*` 逻辑回归混淆矩阵
+  - `total_sulfur_box.*` / `free_sulfur_box.*` 硫化物分布箱线图（按质量分组）
+  - `sulfur_ratio_box.*` 硫化物比例（free/total）分布
+  - `fixed_acidity_violin.*` 不同质量分数下的固定酸度小提琴+散点
 - `reports/interactive_dashboard.html`：交互式可视化（直方图、散点图、相关系数热力图，可在浏览器直接打开，无需服务器）
 - `reports/deepseek_chain_output.txt`：DeepSeek 返回的中文探索建议
 

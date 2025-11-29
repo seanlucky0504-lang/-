@@ -195,6 +195,34 @@ def save_bar_svg(counts: Counter, title: str, path: Path) -> None:
     path.write_text(svg)
 
 
+def require_matplotlib():
+    """Lazy import Matplotlib and force Agg backend for headless PNG output."""
+
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception as exc:  # noqa: BLE001 - 提示安装依赖
+        raise SystemExit(
+            "需要安装 matplotlib 才能输出 PNG，请执行 `pip install matplotlib` 后重试。"
+        ) from exc
+    return plt
+
+
+def save_bar_png(counts: Counter, title: str, path: Path, plt) -> None:
+    keys = sorted(counts.keys())
+    values = [counts[k] for k in keys]
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.bar(keys, values, color="#2c7fb8")
+    ax.set_title(title)
+    ax.set_xlabel("quality")
+    ax.set_ylabel("count")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def save_group_boxplot_svg(
     grouped_values: Dict[str, List[float]],
     title: str,
@@ -260,6 +288,31 @@ def save_group_boxplot_svg(
     path.write_text(svg)
 
 
+def save_group_boxplot_png(
+    grouped_values: Dict[str, List[float]],
+    title: str,
+    y_label: str,
+    path: Path,
+    plt,
+) -> None:
+    labels = list(grouped_values.keys())
+    data = [grouped_values[lbl] for lbl in labels]
+    fig, ax = plt.subplots(figsize=(7, 4))
+    bp = ax.boxplot(data, labels=labels, patch_artist=True)
+    for patch in bp["boxes"]:
+        patch.set_facecolor("#cfe2f3")
+        patch.set_edgecolor("#08519c")
+    for median in bp["medians"]:
+        median.set_color("#08306b")
+        median.set_linewidth(2)
+    ax.set_title(title)
+    ax.set_ylabel(y_label)
+    ax.tick_params(axis="x", rotation=15)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def save_violin_scatter_svg(
     values_by_quality: Dict[int, List[float]], title: str, x_label: str, y_label: str, path: Path
 ) -> None:
@@ -316,6 +369,35 @@ def save_violin_scatter_svg(
     path.write_text(svg)
 
 
+def save_violin_scatter_png(
+    values_by_quality: Dict[int, List[float]], title: str, x_label: str, y_label: str, path: Path, plt
+) -> None:
+    groups = sorted(values_by_quality.keys())
+    data = [values_by_quality[g] for g in groups]
+    positions = list(range(1, len(groups) + 1))
+    fig, ax = plt.subplots(figsize=(7, 4))
+    parts = ax.violinplot(data, positions=positions, showmeans=False, showextrema=False)
+    for pc in parts['bodies']:
+        pc.set_facecolor('#a6bddb')
+        pc.set_edgecolor('#08519c')
+        pc.set_alpha(0.6)
+    # overlay scatter
+    xs, ys = [], []
+    for pos, vals in zip(positions, data):
+        for v in vals:
+            xs.append(pos + (random.random() - 0.5) * 0.15)
+            ys.append(v)
+    ax.scatter(xs, ys, color="#2b8cbe", alpha=0.6, s=18)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(groups)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def save_quality_donut(counts: Dict[str, int], title: str, path: Path) -> None:
     """生成简单环形图显示质量层级分布。"""
 
@@ -358,6 +440,19 @@ def save_quality_donut(counts: Dict[str, int], title: str, path: Path) -> None:
 </svg>
 """
     path.write_text(svg)
+
+
+def save_quality_donut_png(counts: Dict[str, int], title: str, path: Path, plt) -> None:
+    labels = list(counts.keys())
+    sizes = list(counts.values())
+    fig, ax = plt.subplots(figsize=(5, 5))
+    wedges, _ = ax.pie(sizes, labels=labels, startangle=90, wedgeprops=dict(width=0.35))
+    for w in wedges:
+        w.set_edgecolor("white")
+    ax.set_title(title)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 def build_eda_context(rows: List[Dict[str, float]], feature_names: List[str], top_k: int = 3) -> str:
     """构造发送给大模型的上下文，包含关键统计量。"""
     summary = summarize_numeric(rows, feature_names + ["quality"])
@@ -418,6 +513,23 @@ def save_correlation_svg(fields: List[str], matrix: List[List[float]], path: Pat
 </svg>
 """
     path.write_text(svg)
+
+
+def save_correlation_png(fields: List[str], matrix: List[List[float]], path: Path, plt) -> None:
+    fig, ax = plt.subplots(figsize=(7, 6))
+    im = ax.imshow(matrix, cmap="coolwarm", vmin=-1, vmax=1)
+    ax.set_xticks(range(len(fields)))
+    ax.set_yticks(range(len(fields)))
+    ax.set_xticklabels(fields, rotation=45, ha="right")
+    ax.set_yticklabels(fields)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    for i, row in enumerate(matrix):
+        for j, val in enumerate(row):
+            ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=8)
+    ax.set_title("Feature Correlation")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 
 
 def train_test_split(rows: List[Dict[str, float]], test_ratio: float = 0.2, seed: int = 42) -> Tuple[List, List]:
@@ -537,6 +649,28 @@ def save_confusion_svg(y_true: List[int], y_pred: List[int], title: str, path: P
 </svg>
 """
     path.write_text(svg)
+
+
+def save_confusion_png(y_true: List[int], y_pred: List[int], title: str, path: Path, plt) -> None:
+    tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == yp == 1)
+    tn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == yp == 0)
+    fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 1)
+    fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 0)
+    cells = [[tn, fp], [fn, tp]]
+    fig, ax = plt.subplots(figsize=(4, 4))
+    im = ax.imshow(cells, cmap="Blues")
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, str(cells[i][j]), ha="center", va="center", color="black")
+    ax.set_xticks([0, 1], labels=["0", "1"])
+    ax.set_yticks([0, 1], labels=["0", "1"])
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
+    ax.set_title(title)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 
 
 def save_interactive_dashboard(
@@ -784,6 +918,9 @@ def main(
     summary = summarize_numeric(rows, feature_names + ["quality"])
     save_summary_csv(summary, OUTPUT_DIR / "summary_stats.csv")
 
+    use_png = figure_format.lower() == "png"
+    plt = require_matplotlib() if generate_figures and use_png else None
+
     def fig_path(name: str) -> Path:
         return FIG_DIR / f"{name}.{figure_format}"
 
@@ -795,7 +932,10 @@ def main(
 
     quality_counts = Counter(r["quality"] for r in rows)
     if generate_figures:
-        save_bar_svg(quality_counts, "Quality Distribution", register_fig(fig_path("quality_distribution")))
+        if use_png:
+            save_bar_png(quality_counts, "Quality Distribution", register_fig(fig_path("quality_distribution")), plt)
+        else:
+            save_bar_svg(quality_counts, "Quality Distribution", register_fig(fig_path("quality_distribution")))
 
         # 质量分层环形图（低/中/高）
         banded = {"低质量(<=4)": 0, "中等(5-6)": 0, "高质量(>=7)": 0}
@@ -806,14 +946,22 @@ def main(
                 banded["中等(5-6)"] += quality_counts[q]
             else:
                 banded["高质量(>=7)"] += quality_counts[q]
-        save_quality_donut(banded, "质量层级占比", register_fig(fig_path("quality_donut")))
+        if use_png:
+            save_quality_donut_png(banded, "质量层级占比", register_fig(fig_path("quality_donut")), plt)
+        else:
+            save_quality_donut(banded, "质量层级占比", register_fig(fig_path("quality_donut")))
 
     fields_for_corr = feature_names + ["quality"]
     correlation_matrix = compute_correlation_matrix(rows, fields_for_corr)
     if generate_figures:
-        save_correlation_svg(
-            fields_for_corr, correlation_matrix, register_fig(fig_path("correlation_heatmap"))
-        )
+        if use_png:
+            save_correlation_png(
+                fields_for_corr, correlation_matrix, register_fig(fig_path("correlation_heatmap")), plt
+            )
+        else:
+            save_correlation_svg(
+                fields_for_corr, correlation_matrix, register_fig(fig_path("correlation_heatmap"))
+            )
 
     # 硫化物分布箱线图（按高/普通质量分组）
     grouped_sulfur = {
@@ -821,37 +969,65 @@ def main(
         "高质量酒(>=7)": [r["total_sulfur_dioxide"] for r in rows if r["quality_label"] == 1],
     }
     if generate_figures:
-        save_group_boxplot_svg(
-            grouped_sulfur,
-            title="总二氧化硫分布（按质量分组）",
-            y_label="total_sulfur_dioxide",
-            path=register_fig(fig_path("total_sulfur_box")),
-        )
+        if use_png:
+            save_group_boxplot_png(
+                grouped_sulfur,
+                title="总二氧化硫分布（按质量分组）",
+                y_label="total_sulfur_dioxide",
+                path=register_fig(fig_path("total_sulfur_box")),
+                plt=plt,
+            )
+        else:
+            save_group_boxplot_svg(
+                grouped_sulfur,
+                title="总二氧化硫分布（按质量分组）",
+                y_label="total_sulfur_dioxide",
+                path=register_fig(fig_path("total_sulfur_box")),
+            )
 
     grouped_free = {
         "普通酒(quality<7)": [r["free_sulfur_dioxide"] for r in rows if r["quality_label"] == 0],
         "高质量酒(>=7)": [r["free_sulfur_dioxide"] for r in rows if r["quality_label"] == 1],
     }
     if generate_figures:
-        save_group_boxplot_svg(
-            grouped_free,
-            title="游离二氧化硫分布（按质量分组）",
-            y_label="free_sulfur_dioxide",
-            path=register_fig(fig_path("free_sulfur_box")),
-        )
+        if use_png:
+            save_group_boxplot_png(
+                grouped_free,
+                title="游离二氧化硫分布（按质量分组）",
+                y_label="free_sulfur_dioxide",
+                path=register_fig(fig_path("free_sulfur_box")),
+                plt=plt,
+            )
+        else:
+            save_group_boxplot_svg(
+                grouped_free,
+                title="游离二氧化硫分布（按质量分组）",
+                y_label="free_sulfur_dioxide",
+                path=register_fig(fig_path("free_sulfur_box")),
+            )
 
     # 固定酸度 vs 质量分数：小提琴 + 散点
     quality_buckets = {}
     for r in rows:
         quality_buckets.setdefault(int(r["quality"]), []).append(r["fixed_acidity"])
     if generate_figures:
-        save_violin_scatter_svg(
-            quality_buckets,
-            title="不同质量分数下的固定酸度分布",
-            x_label="quality",
-            y_label="fixed_acidity",
-            path=register_fig(fig_path("fixed_acidity_violin")),
-        )
+        if use_png:
+            save_violin_scatter_png(
+                quality_buckets,
+                title="不同质量分数下的固定酸度分布",
+                x_label="quality",
+                y_label="fixed_acidity",
+                path=register_fig(fig_path("fixed_acidity_violin")),
+                plt=plt,
+            )
+        else:
+            save_violin_scatter_svg(
+                quality_buckets,
+                title="不同质量分数下的固定酸度分布",
+                x_label="quality",
+                y_label="fixed_acidity",
+                path=register_fig(fig_path("fixed_acidity_violin")),
+            )
 
     # 硫化物比例分析（free/total）按质量分组
     ratio_groups = {"普通酒(quality<7)": [], "高质量酒(>=7)": []}
@@ -860,12 +1036,21 @@ def main(
         bucket = "高质量酒(>=7)" if r["quality_label"] == 1 else "普通酒(quality<7)"
         ratio_groups[bucket].append(ratio)
     if generate_figures:
-        save_group_boxplot_svg(
-            ratio_groups,
-            title="硫化物比例 (free/total) 分布",
-            y_label="比例",
-            path=register_fig(fig_path("sulfur_ratio_box")),
-        )
+        if use_png:
+            save_group_boxplot_png(
+                ratio_groups,
+                title="硫化物比例 (free/total) 分布",
+                y_label="比例",
+                path=register_fig(fig_path("sulfur_ratio_box")),
+                plt=plt,
+            )
+        else:
+            save_group_boxplot_svg(
+                ratio_groups,
+                title="硫化物比例 (free/total) 分布",
+                y_label="比例",
+                path=register_fig(fig_path("sulfur_ratio_box")),
+            )
 
     train_rows, test_rows = train_test_split(rows, test_ratio=0.2, seed=42)
     X_train, means, stdevs = standardize(train_rows, feature_names)
@@ -880,9 +1065,18 @@ def main(
     test_probs = predict_proba(weights, X_test)
     test_preds = [1 if p >= 0.5 else 0 for p in test_probs]
     if generate_figures:
-        save_confusion_svg(
-            y_test, test_preds, "Logistic Regression Confusion", register_fig(fig_path("log_reg_confusion"))
-        )
+        if use_png:
+            save_confusion_png(
+                y_test,
+                test_preds,
+                "Logistic Regression Confusion",
+                register_fig(fig_path("log_reg_confusion")),
+                plt,
+            )
+        else:
+            save_confusion_svg(
+                y_test, test_preds, "Logistic Regression Confusion", register_fig(fig_path("log_reg_confusion"))
+            )
 
     metrics = {
         "model": "custom_logistic_regression",
@@ -963,8 +1157,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--figure-format",
         default="svg",
-        choices=["svg"],
-        help="可视化输出格式，当前支持 svg，运行后会在 reports/figures 下生成对应扩展名。",
+        choices=["svg", "png"],
+        help="可视化输出格式，可选 svg 或 png（png 需额外安装 matplotlib）。",
     )
     args = parser.parse_args()
     main(
