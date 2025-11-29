@@ -1,0 +1,6 @@
+
+<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>
+  <text x='20' y='20' font-size='16'>Logistic Regression Confusion</text>
+  <rect x="60" y="60" width="60" height="60" fill="#d9f0a3" stroke="#1b7837" /><text x="80" y="95" font-size="14">2</text><rect x="120" y="60" width="60" height="60" fill="#d9f0a3" stroke="#1b7837" /><text x="140" y="95" font-size="14">1</text><rect x="60" y="120" width="60" height="60" fill="#d9f0a3" stroke="#1b7837" /><text x="80" y="155" font-size="14">1</text><rect x="120" y="120" width="60" height="60" fill="#d9f0a3" stroke="#1b7837" /><text x="140" y="155" font-size="14">0</text>
+  <text x="30" y="90" font-size="12">Actual 0</text><text x="30" y="150" font-size="12">Actual 1</text><text x="80" y="50" font-size="12">Pred 0</text><text x="140" y="50" font-size="12">Pred 1</text>
+</svg>
