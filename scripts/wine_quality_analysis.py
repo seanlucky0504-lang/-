@@ -195,6 +195,40 @@ def save_bar_svg(counts: Counter, title: str, path: Path) -> None:
     path.write_text(svg)
 
 
+def _configure_matplotlib_fonts(matplotlib) -> None:
+    """尽量选用包含中文的字体，改善 PNG 可视化中文显示效果。"""
+
+    try:
+        from matplotlib import font_manager
+    except Exception:  # noqa: BLE001 - 字体配置失败不应阻断流程
+        return
+
+    preferred = [
+        "Noto Sans CJK SC",
+        "Source Han Sans SC",
+        "Microsoft YaHei",
+        "PingFang SC",
+        "SimHei",
+        "Heiti SC",
+        "WenQuanYi Micro Hei",
+        "AR PL UMing CN",
+        "LXGW WenKai",
+        "DejaVu Sans",
+    ]
+
+    available = {f.name for f in font_manager.fontManager.ttflist}
+    chosen = None
+    for name in preferred:
+        if any(name in avail for avail in available):
+            chosen = name
+            break
+
+    if chosen:
+        matplotlib.rcParams["font.family"] = chosen
+    matplotlib.rcParams["font.sans-serif"] = preferred
+    matplotlib.rcParams["axes.unicode_minus"] = False
+
+
 def require_matplotlib():
     """Lazy import Matplotlib and force Agg backend for headless PNG output."""
 
@@ -207,6 +241,8 @@ def require_matplotlib():
         raise SystemExit(
             "需要安装 matplotlib 才能输出 PNG，请执行 `pip install matplotlib` 后重试。"
         ) from exc
+
+    _configure_matplotlib_fonts(matplotlib)
     return plt
 
 
