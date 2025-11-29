@@ -787,9 +787,15 @@ def main(
     def fig_path(name: str) -> Path:
         return FIG_DIR / f"{name}.{figure_format}"
 
+    generated_paths: list[Path] = []
+
+    def register_fig(path: Path) -> Path:
+        generated_paths.append(path)
+        return path
+
     quality_counts = Counter(r["quality"] for r in rows)
     if generate_figures:
-        save_bar_svg(quality_counts, "Quality Distribution", fig_path("quality_distribution"))
+        save_bar_svg(quality_counts, "Quality Distribution", register_fig(fig_path("quality_distribution")))
 
         # 质量分层环形图（低/中/高）
         banded = {"低质量(<=4)": 0, "中等(5-6)": 0, "高质量(>=7)": 0}
@@ -800,12 +806,14 @@ def main(
                 banded["中等(5-6)"] += quality_counts[q]
             else:
                 banded["高质量(>=7)"] += quality_counts[q]
-        save_quality_donut(banded, "质量层级占比", fig_path("quality_donut"))
+        save_quality_donut(banded, "质量层级占比", register_fig(fig_path("quality_donut")))
 
     fields_for_corr = feature_names + ["quality"]
     correlation_matrix = compute_correlation_matrix(rows, fields_for_corr)
     if generate_figures:
-        save_correlation_svg(fields_for_corr, correlation_matrix, fig_path("correlation_heatmap"))
+        save_correlation_svg(
+            fields_for_corr, correlation_matrix, register_fig(fig_path("correlation_heatmap"))
+        )
 
     # 硫化物分布箱线图（按高/普通质量分组）
     grouped_sulfur = {
@@ -817,7 +825,7 @@ def main(
             grouped_sulfur,
             title="总二氧化硫分布（按质量分组）",
             y_label="total_sulfur_dioxide",
-            path=fig_path("total_sulfur_box"),
+            path=register_fig(fig_path("total_sulfur_box")),
         )
 
     grouped_free = {
@@ -829,7 +837,7 @@ def main(
             grouped_free,
             title="游离二氧化硫分布（按质量分组）",
             y_label="free_sulfur_dioxide",
-            path=fig_path("free_sulfur_box"),
+            path=register_fig(fig_path("free_sulfur_box")),
         )
 
     # 固定酸度 vs 质量分数：小提琴 + 散点
@@ -842,7 +850,7 @@ def main(
             title="不同质量分数下的固定酸度分布",
             x_label="quality",
             y_label="fixed_acidity",
-            path=fig_path("fixed_acidity_violin"),
+            path=register_fig(fig_path("fixed_acidity_violin")),
         )
 
     # 硫化物比例分析（free/total）按质量分组
@@ -856,7 +864,7 @@ def main(
             ratio_groups,
             title="硫化物比例 (free/total) 分布",
             y_label="比例",
-            path=fig_path("sulfur_ratio_box"),
+            path=register_fig(fig_path("sulfur_ratio_box")),
         )
 
     train_rows, test_rows = train_test_split(rows, test_ratio=0.2, seed=42)
@@ -872,7 +880,9 @@ def main(
     test_probs = predict_proba(weights, X_test)
     test_preds = [1 if p >= 0.5 else 0 for p in test_probs]
     if generate_figures:
-        save_confusion_svg(y_test, test_preds, "Logistic Regression Confusion", fig_path("log_reg_confusion"))
+        save_confusion_svg(
+            y_test, test_preds, "Logistic Regression Confusion", register_fig(fig_path("log_reg_confusion"))
+        )
 
     metrics = {
         "model": "custom_logistic_regression",
@@ -886,10 +896,25 @@ def main(
 
     if generate_figures:
         save_interactive_dashboard(
-            rows, feature_names, correlation_matrix, fields_for_corr, OUTPUT_DIR / "interactive_dashboard.html"
+            rows,
+            feature_names,
+            correlation_matrix,
+            fields_for_corr,
+            register_fig(OUTPUT_DIR / "interactive_dashboard.html"),
         )
 
     print(json.dumps(metrics, indent=2))
+
+    if generate_figures:
+        if generated_paths:
+            print("\n已生成以下可视化文件：")
+            for p in generated_paths:
+                print(f"- {p}")
+            print("提示：默认输出为 SVG，可直接用浏览器打开。如果需要关闭生成，请添加 --no-figures。")
+        else:
+            print("\n未生成可视化文件，请检查数据是否为空或是否指定了 --no-figures。")
+    else:
+        print("\n已跳过可视化生成。如需图表，请去掉 --no-figures。")
 
     if question:
         context = build_eda_context(rows, feature_names)

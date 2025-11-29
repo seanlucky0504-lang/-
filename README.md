@@ -62,6 +62,7 @@ python scripts/wine_quality_analysis.py --no-figures
 > 说明：`scripts/wine_quality_analysis.py` 会按 **CLI 参数优先、环境变量兜底** 的顺序读取 `DEEPSEEK_API_KEY`（必填）和 `DEEPSEEK_API_URL`（可选，缺省为官方地址），并在 `reports/deepseek_chain_output.txt` 中保存返回内容。
 
 输出位置：
+- 运行脚本时会在终端列出已生成的文件路径，默认格式为 **SVG**，可直接用浏览器打开；如需跳过绘图，使用 `--no-figures`。
 - `reports/summary_stats.csv`：各特征统计量
 - `reports/model_metrics.json`：评估指标（F1、ROC-AUC）与评估标准说明
 - `reports/figures/*.{svg}`（运行时生成，默认 SVG，支持通过 `--figure-format` 指定）:
