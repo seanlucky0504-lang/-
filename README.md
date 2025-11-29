@@ -18,6 +18,26 @@ DEEPSEEK_API_KEY=your_key \
 python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程建议"
 ```
 
+### 如何配置和调用 DeepSeek API Key？
+1. **获取密钥**：在 DeepSeek 控制台创建密钥，复制得到的字符串。
+2. **临时设置（推荐在命令行使用 `--ask`）**：在运行命令前导出环境变量，例如：
+   ```bash
+   export DEEPSEEK_API_KEY="你的密钥"
+   # 如需自定义网关，可选设定 DEEPSEEK_API_URL，默认使用官方地址
+   # export DEEPSEEK_API_URL="https://api.deepseek.com/chat/completions"
+
+   python scripts/wine_quality_analysis.py --ask "分析酒精度与质量的关系"
+   ```
+3. **一次性调用（不修改 shell 环境）**：直接在命令前传入变量即可：
+   ```bash
+   DEEPSEEK_API_KEY="你的密钥" \
+   python scripts/wine_quality_analysis.py --ask "推荐提升 F1 的特征选择方案"
+   ```
+4. **未配置密钥时的行为**：脚本会自动降级到离线模式，返回基于本地统计的中文建议，并提示需要提供 `DEEPSEEK_API_KEY` 以获得在线分析。
+
+> 说明：`scripts/wine_quality_analysis.py` 会读取 `DEEPSEEK_API_KEY`（必填）和 `DEEPSEEK_API_URL`（可选，缺省为官方地址），并在 `reports/deepseek_chain_output.txt` 中保存返回内容。
+
+
 输出位置：
 - `reports/summary_stats.csv`：各特征统计量
 - `reports/model_metrics.json`：评估指标（F1、ROC-AUC）与评估标准说明
