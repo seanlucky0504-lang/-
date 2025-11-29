@@ -18,10 +18,36 @@ from typing import Dict, List, Tuple
 from urllib.request import Request, urlopen
 
 
+def _read_dotenv(var_name: str) -> str | None:
+    """Lightweight `.env` reader to improve key discovery on Windows/shells.
+
+    支持在项目根目录或脚本同级目录查找 `.env` 文件，并读取形如
+    `VAR=value` 的键值。避免在 Windows CMD/PowerShell 下临时前置变量
+    失效的问题。
+    """
+
+    for path in (Path(".env"), Path(__file__).resolve().parent / ".env"):
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line or line.lstrip().startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key.strip() == var_name:
+                return value.strip()
+    return None
+
+
+def _clean_env_value(value: str | None) -> str:
+    """Strip quotes/whitespace to avoid `'"sk-***"'` being treated as empty."""
+
+    return value.strip().strip("'\"") if value else ""
+
+
 class DeepSeekChain:
     """Minimal chain wrapper for DeepSeek API calls.
 
-    - 通过环境变量 `DEEPSEEK_API_KEY` 和可选的 `DEEPSEEK_API_URL` 读取鉴权信息。
+    - 通过环境变量、`.env`（项目根/脚本目录）或 CLI 参数读取 `DEEPSEEK_API_KEY`。
     - 如果缺少密钥或网络不可达，会返回基于本地数据上下文的友好降级提示。
     """
 
@@ -34,33 +60,22 @@ class DeepSeekChain:
     def from_env(
         cls, api_key: str | None = None, api_url: str | None = None
     ) -> "DeepSeekChain | None":
-        """Resolve DeepSeek credentials from explicit args, env vars or .env file."""
+        """Support CLI/env/.env override for API key & URL."""
 
-        default_url = "https://api.deepseek.com/chat/completions"
-
-        def clean(value: str | None) -> str:
-            return value.strip().strip("\"").strip("'") if value else ""
-
-        if api_key:
-            resolved_key = clean(api_key)
-        else:
-            resolved_key = clean(os.getenv("DEEPSEEK_API_KEY"))
-
+        resolved_key = _clean_env_value(api_key)
         if not resolved_key:
-            env_candidates = [Path.cwd() / ".env", Path(__file__).resolve().parent / ".env"]
-            for env_file in env_candidates:
-                if env_file.exists():
-                    for line in env_file.read_text(encoding="utf-8").splitlines():
-                        if line.strip().startswith("DEEPSEEK_API_KEY="):
-                            resolved_key = clean(line.split("=", 1)[1])
-                            break
-                if resolved_key:
-                    break
-
+            resolved_key = _clean_env_value(os.getenv("DEEPSEEK_API_KEY"))
+        if not resolved_key:
+            resolved_key = _clean_env_value(_read_dotenv("DEEPSEEK_API_KEY"))
         if not resolved_key:
             return None
 
-        resolved_url = api_url or os.getenv("DEEPSEEK_API_URL", default_url)
+        resolved_url = _clean_env_value(api_url)
+        if not resolved_url:
+            resolved_url = _clean_env_value(os.getenv("DEEPSEEK_API_URL"))
+        if not resolved_url:
+            resolved_url = _clean_env_value(_read_dotenv("DEEPSEEK_API_URL"))
+        resolved_url = resolved_url or "https://api.deepseek.com/chat/completions"
         return cls(api_key=resolved_key, api_url=resolved_url)
 
     def run(self, question: str, context: str) -> str:
@@ -592,7 +607,11 @@ def save_interactive_dashboard(
     path.write_text(html, encoding="utf-8")
 
 
-def main(question: str | None = None, api_key: str | None = None, api_url: str | None = None):
+def main(
+    question: str | None = None,
+    deepseek_api_key: str | None = None,
+    deepseek_api_url: str | None = None,
+):
     raw_rows = load_data()
     rows = preprocess_data(raw_rows)
     feature_names = [k for k in rows[0].keys() if k not in {"quality", "quality_label"}]
@@ -639,15 +658,16 @@ def main(question: str | None = None, api_key: str | None = None, api_url: str |
 
     if question:
         context = build_eda_context(rows, feature_names)
-        chain = DeepSeekChain.from_env(api_key=api_key, api_url=api_url)
+        chain = DeepSeekChain.from_env(api_key=deepseek_api_key, api_url=deepseek_api_url)
         if chain:
             answer = chain.run(question, context)
         else:
             answer = (
-                "未检测到有效的 DeepSeek API Key，请确认：\n"
-                "1) 当前终端已设置 DEEPSEEK_API_KEY 环境变量；\n"
-                "2) 或在项目根目录/脚本所在目录提供 .env，形如 DEEPSEEK_API_KEY=sk-***；\n"
-                "3) 或使用 --deepseek-api-key 显式传入。\n\n"
+                "未检测到有效的 DEEPSEEK_API_KEY，请按以下方式之一传入：\n"
+                "- Bash: export DEEPSEEK_API_KEY=sk-xxx && python scripts/wine_quality_analysis.py --ask '...';\n"
+                "- PowerShell: $Env:DEEPSEEK_API_KEY=\"sk-xxx\"; python scripts/wine_quality_analysis.py --ask \"...\";\n"
+                "- Windows CMD: set DEEPSEEK_API_KEY=sk-xxx && python scripts/wine_quality_analysis.py --ask \"...\";\n"
+                "- `.env` 文件：在项目根目录创建 .env，写入 DEEPSEEK_API_KEY=sk-xxx，必要时再运行脚本。\n\n"
                 "以下为基于本地统计的离线建议：\n"
                 "- 关注方差较大的理化指标（如酒精含量、总二氧化硫）与质量的关系。\n"
                 "- 结合相关系数热力图，挑选正负相关最强的特征做特征工程。\n"
@@ -669,11 +689,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--deepseek-api-key",
-        help="显式传入 DeepSeek API key（优先级高于环境变量或 .env）。",
+        help="可选，直接通过命令行传入 DeepSeek API Key（优先于环境变量）。",
     )
     parser.add_argument(
         "--deepseek-api-url",
-        help="可选，覆盖默认的 DeepSeek API URL。",
+        help="可选，自定义 DeepSeek 网关地址，便于走代理或私有网关。",
     )
     args = parser.parse_args()
-    main(question=args.ask, api_key=args.deepseek_api_key, api_url=args.deepseek_api_url)
+    main(question=args.ask, deepseek_api_key=args.deepseek_api_key, deepseek_api_url=args.deepseek_api_url)

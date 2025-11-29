@@ -13,18 +13,21 @@
 # 基础流程（预处理 + EDA + 训练评估）
 python scripts/wine_quality_analysis.py
 
-# 附带 DeepSeek 链式探索，可用环境变量或 CLI 直传密钥
-DEEPSEEK_API_KEY=your_key \
+# 附带 DeepSeek 链式探索，可用环境变量或 CLI 直传密钥（Bash 示例）
+DEEPSEEK_API_KEY=your_key \\
 python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程建议"
 
-# 或者命令行直传，便于在 CI/一次性调用时使用
+# PowerShell 一次性运行
+$Env:DEEPSEEK_API_KEY="your_key"; python scripts/wine_quality_analysis.py --ask "分析酒精度与质量的关系"
+
+# Windows CMD 一次性运行
+set DEEPSEEK_API_KEY=your_key && python scripts/wine_quality_analysis.py --ask "分析酒精度与质量的关系"
+
+# 或者命令行直传（跨平台通用），便于在 CI/一次性调用时使用
 python scripts/wine_quality_analysis.py \
   --ask "分析酒精度与质量的关系" \
   --deepseek-api-key your_key \
   --deepseek-api-url https://api.deepseek.com/chat/completions
-# 附带 DeepSeek 链式探索，需提前设置 DEEPSEEK_API_KEY
-DEEPSEEK_API_KEY=your_key \
-python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程建议"
 ```
 
 ### 如何配置和调用 DeepSeek API Key？
@@ -37,15 +40,22 @@ python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程�
 
    python scripts/wine_quality_analysis.py --ask "分析酒精度与质量的关系"
    ```
-3. **一次性调用（不修改 shell 环境）**：直接在命令前传入变量即可：
+3. **一次性调用（不修改 shell 环境）**：可以选择前置环境变量，或使用 CLI 参数 `--deepseek-api-key` / `--deepseek-api-url`，例如：
    ```bash
+   # 方式 A：前置环境变量
    DEEPSEEK_API_KEY="你的密钥" \
    python scripts/wine_quality_analysis.py --ask "推荐提升 F1 的特征选择方案"
-   ```
-4. **未配置密钥时的行为**：脚本会自动降级到离线模式，返回基于本地统计的中文建议，并提示需要提供 `DEEPSEEK_API_KEY` 以获得在线分析。
 
-> 说明：`scripts/wine_quality_analysis.py` 会读取 `DEEPSEEK_API_KEY`（必填）和 `DEEPSEEK_API_URL`（可选，缺省为官方地址），并在 `reports/deepseek_chain_output.txt` 中保存返回内容。
+   # 方式 B：CLI 直传，方便在 CI 或交互式 notebook 中调用
+ python scripts/wine_quality_analysis.py \
+   --ask "如何解释酒精度与品质的相关性？" \
+   --deepseek-api-key "你的密钥" \
+   --deepseek-api-url "https://api.deepseek.com/chat/completions"
+  ```
+4. **`.env` 文件读取**：如果无法在命令行前置环境变量，可在项目根目录创建 `.env`，内容为 `DEEPSEEK_API_KEY=你的密钥`（可选再写 `DEEPSEEK_API_URL=自定义网关`），脚本会自动读取。
+5. **未配置密钥时的行为**：脚本会自动降级到离线模式，返回基于本地统计的中文建议，并提示需要提供 `DEEPSEEK_API_KEY` 以获得在线分析。
 
+> 说明：`scripts/wine_quality_analysis.py` 会按 **CLI 参数优先、环境变量兜底** 的顺序读取 `DEEPSEEK_API_KEY`（必填）和 `DEEPSEEK_API_URL`（可选，缺省为官方地址），并在 `reports/deepseek_chain_output.txt` 中保存返回内容。
 
 输出位置：
 - `reports/summary_stats.csv`：各特征统计量
@@ -53,6 +63,10 @@ python scripts/wine_quality_analysis.py --ask "给出提升 F1 的特征工程�
 - `reports/figures/*.svg`：质量分布、相关性热力图、混淆矩阵
 - `reports/interactive_dashboard.html`：交互式可视化（直方图、散点图、相关系数热力图，可在浏览器直接打开，无需服务器）
 - `reports/deepseek_chain_output.txt`：DeepSeek 返回的中文探索建议
+
+## 数据集链接
+- UCI 官方源（含红/白酒质量数据）：https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/
+- 本仓库自带的离线快照：`data/winequality-red-sample.csv`（源于上述官方数据，便于无网运行）
 
 ## 更多探索方案（可直接作为 `--ask` 提问）
 - “依据方差最大的前三个理化指标，设计新的交互项是否有助于提升模型表现？”
