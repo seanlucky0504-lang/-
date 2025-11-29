@@ -38,19 +38,24 @@ class DeepSeekChain:
 
         default_url = "https://api.deepseek.com/chat/completions"
 
+        def clean(value: str | None) -> str:
+            return value.strip().strip("\"").strip("'") if value else ""
+
         if api_key:
-            resolved_key = api_key
+            resolved_key = clean(api_key)
         else:
-            resolved_key = os.getenv("DEEPSEEK_API_KEY")
+            resolved_key = clean(os.getenv("DEEPSEEK_API_KEY"))
 
         if not resolved_key:
-            env_file = Path(".env")
-            if env_file.exists():
-                for line in env_file.read_text(encoding="utf-8").splitlines():
-                    if line.strip().startswith("DEEPSEEK_API_KEY="):
-                        raw_value = line.split("=", 1)[1].strip()
-                        resolved_key = raw_value.strip("\"").strip("'")
-                        break
+            env_candidates = [Path.cwd() / ".env", Path(__file__).resolve().parent / ".env"]
+            for env_file in env_candidates:
+                if env_file.exists():
+                    for line in env_file.read_text(encoding="utf-8").splitlines():
+                        if line.strip().startswith("DEEPSEEK_API_KEY="):
+                            resolved_key = clean(line.split("=", 1)[1])
+                            break
+                if resolved_key:
+                    break
 
         if not resolved_key:
             return None
@@ -639,7 +644,11 @@ def main(question: str | None = None, api_key: str | None = None, api_url: str |
             answer = chain.run(question, context)
         else:
             answer = (
-                "未检测到 DEEPSEEK_API_KEY，以下为基于本地统计的离线建议：\n"
+                "未检测到有效的 DeepSeek API Key，请确认：\n"
+                "1) 当前终端已设置 DEEPSEEK_API_KEY 环境变量；\n"
+                "2) 或在项目根目录/脚本所在目录提供 .env，形如 DEEPSEEK_API_KEY=sk-***；\n"
+                "3) 或使用 --deepseek-api-key 显式传入。\n\n"
+                "以下为基于本地统计的离线建议：\n"
                 "- 关注方差较大的理化指标（如酒精含量、总二氧化硫）与质量的关系。\n"
                 "- 结合相关系数热力图，挑选正负相关最强的特征做特征工程。\n"
                 "- 可以尝试阈值移动或采样方法平衡标签，提高 F1。"
